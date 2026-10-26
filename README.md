@@ -88,20 +88,6 @@ evals/                 12 behavioral cases from the spec + grading rubric
 scripts/               validate.mjs (structure + secret + private-denylist checks), install.sh, hooks/
 ```
 
-## Differences from [kunchenguid/kun](https://github.com/kunchenguid/kun)
-
-Kept: a thin entry skill, separate judgment / voice / tools files, and selective loading.
-
-Changed on purpose:
-
-- **No pull-at-runtime.** `/kun` downloads and runs a script each time it loads. `/dan`
-  ships its content in the installed folder, and updates are reviewed, versioned releases.
-  The spec forbids silently downloading and running new code.
-- **Workflows and permission levels**, not just opinions. Dan's spec is about doing work
-  safely while he's offline, so action boundaries are first-class.
-- **Provenance on every principle.** Each one is Confirmed / Observed / Proposed, so
-  generated text never quietly becomes "what Dan thinks".
-
 ## Status (v0.1.0)
 
 - Principles: all **Proposed**, distilled from Dan's spec, awaiting his own examples.
