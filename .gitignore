@@ -1,0 +1,7 @@
+# Private workspace adapters never belong in this public repo
+.dan/
+*.adapter.json
+!skills/dan/adapters/example.adapter.json
+.env*
+.DS_Store
+node_modules/
