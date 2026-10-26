@@ -1,0 +1,63 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/ebenlab/dan/skills/dan/schemas/workspace-adapter.schema.json",
+  "title": "WorkspaceAdapter",
+  "description": "Private, per-workspace configuration. Never commit a real adapter to the public repo. Contains no credentials and grants no permissions.",
+  "type": "object",
+  "required": ["id", "name", "timezone", "sources", "repositories"],
+  "additionalProperties": false,
+  "properties": {
+    "id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$" },
+    "name": { "type": "string" },
+    "timezone": { "type": "string", "description": "IANA timezone for schedules and due dates." },
+    "sources": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["system", "scope"],
+        "additionalProperties": false,
+        "properties": {
+          "system": { "type": "string" },
+          "scope": { "type": "string", "description": "Which queues/projects/channels are in scope." },
+          "id_format": { "type": "string", "description": "How stable IDs look, for dedupe." }
+        }
+      }
+    },
+    "repositories": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "default_branch"],
+        "additionalProperties": false,
+        "properties": {
+          "name": { "type": "string" },
+          "default_branch": { "type": "string" },
+          "check_commands": { "type": "array", "items": { "type": "string" } },
+          "instructions_files": { "type": "array", "items": { "type": "string" } },
+          "test_environment": { "type": "string", "description": "Safe environment for reproduction. Must not be production." }
+        }
+      }
+    },
+    "roles": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["handle", "role"],
+        "additionalProperties": false,
+        "properties": { "handle": { "type": "string" }, "role": { "type": "string" } }
+      }
+    },
+    "terminology": { "type": "object", "additionalProperties": { "type": "string" } },
+    "service_expectations": { "type": "string", "description": "Response-time norms for this workspace. Replaces any universal urgency rule." },
+    "release_process": { "type": "string" },
+    "review_loop": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "max_rounds": { "type": "integer", "minimum": 1 },
+        "max_minutes": { "type": "number" }
+      }
+    },
+    "capability_gaps": { "type": "array", "items": { "type": "string" }, "description": "Operations this workspace cannot support yet." }
+  }
+}

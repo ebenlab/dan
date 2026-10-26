@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/ebenlab/dan/skills/dan/schemas/evidence.schema.json",
+  "title": "Evidence",
+  "description": "One claim and exactly where it came from.",
+  "type": "object",
+  "required": ["id", "claim", "kind", "source", "retrieved_at", "scope"],
+  "additionalProperties": false,
+  "properties": {
+    "id": { "type": "string" },
+    "claim": { "type": "string", "description": "The single claim this evidence supports." },
+    "kind": {
+      "enum": ["human_text", "generated_summary", "code_inspection", "test_result", "production_telemetry", "document"],
+      "description": "A generated summary is weaker than the human text it summarizes; keep them distinct."
+    },
+    "source": {
+      "type": "object",
+      "required": ["system", "source_id"],
+      "additionalProperties": false,
+      "properties": {
+        "system": { "type": "string" },
+        "source_id": { "type": "string" },
+        "url": { "type": "string" },
+        "location": { "type": "string", "description": "file:line, log line, message ID, etc." },
+        "revision": { "type": "string" }
+      }
+    },
+    "author": { "type": "string" },
+    "authored_at": { "type": "string", "format": "date-time" },
+    "retrieved_at": { "type": "string", "format": "date-time" },
+    "scope": { "type": "string", "description": "Workspace and context where this evidence is valid." },
+    "stance": { "enum": ["checked", "author_reports", "suspected"], "description": "I checked / the author reports / I suspect." },
+    "contradicts": { "type": "array", "items": { "type": "string" }, "description": "IDs of evidence this conflicts with." }
+  }
+}

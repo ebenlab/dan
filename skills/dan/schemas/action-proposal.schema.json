@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/ebenlab/dan/skills/dan/schemas/action-proposal.schema.json",
+  "title": "ActionProposal",
+  "description": "One side effect, bound to exact content, base revision and approval. Revalidate before executing if anything material changed.",
+  "type": "object",
+  "required": ["id", "task_id", "action", "level", "target", "content", "approval"],
+  "additionalProperties": false,
+  "properties": {
+    "id": { "type": "string" },
+    "task_id": { "type": "string" },
+    "action": { "enum": ["publish_branch", "open_draft_pr", "post_comment", "create_ticket", "send_message", "other"] },
+    "level": { "enum": ["A3", "A4", "reserved"] },
+    "target": {
+      "type": "object",
+      "required": ["system", "destination"],
+      "additionalProperties": false,
+      "properties": {
+        "system": { "type": "string" },
+        "destination": { "type": "string", "description": "Repo, channel, thread, recipient." },
+        "sending_identity": { "type": "string" }
+      }
+    },
+    "content": { "type": "string", "description": "Exact message text or diff reference. Approval covers this content only." },
+    "content_sha256": { "type": "string" },
+    "base_revision": { "type": "string", "description": "Thread state or commit this was prepared against." },
+    "tests": { "type": "array", "items": { "type": "string" } },
+    "intended_side_effects": { "type": "array", "items": { "type": "string" } },
+    "evidence": { "type": "array", "items": { "type": "string" } },
+    "approval": {
+      "type": "object",
+      "required": ["state"],
+      "additionalProperties": false,
+      "properties": {
+        "state": { "enum": ["not_required_under_grant", "pending", "approved", "rejected", "invalidated"] },
+        "grant_ref": { "type": "string" },
+        "approved_by": { "type": "string" },
+        "approved_at": { "type": "string", "format": "date-time" },
+        "invalidated_reason": { "type": "string", "description": "e.g. human replied, revocation, new commit." }
+      }
+    },
+    "receipt": {
+      "type": "object",
+      "description": "Filled only after execution. An uncertain outcome must be reconciled before any retry.",
+      "additionalProperties": false,
+      "properties": {
+        "outcome": { "enum": ["succeeded", "failed", "uncertain"] },
+        "executed_at": { "type": "string", "format": "date-time" },
+        "external_id": { "type": "string" },
+        "url": { "type": "string" }
+      }
+    }
+  }
+}
