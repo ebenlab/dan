@@ -4,6 +4,7 @@
 import { readFileSync, readdirSync, existsSync, statSync } from "node:fs";
 import { join, dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { spawnSync } from "node:child_process";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const skill = join(root, "skills", "dan");
@@ -40,11 +41,29 @@ for (const doc of ["ENTRY.md", "WORKFLOWS.md"]) {
 const index = read(join(skill, "WORKFLOWS.md"));
 for (const f of wfFiles) if (!index.includes(`workflows/${f}`)) fail(`WORKFLOWS.md: does not index workflows/${f}`);
 
-// 4. Relative markdown links resolve
+// Private or local-only folders. Skipped before recursion, so they are never read.
+const PRUNE = new Set([".git", "node_modules", ".dan", ".agent-exchange"]);
 const walk = (d) => readdirSync(d).flatMap((f) => {
+  if (PRUNE.has(f)) return [];
   const p = join(d, f);
   return statSync(p).isDirectory() ? walk(p) : [p];
 });
+
+// Files that would be published: tracked + untracked-but-not-ignored, as git sees them.
+// A force-added private file is tracked, so it is scanned (it really would be published).
+// Without git (e.g. a plain copy), fall back to the pruned walk.
+const publishable = () => {
+  const top = spawnSync("git", ["rev-parse", "--show-toplevel"], { cwd: root, encoding: "utf8" });
+  if (top.status !== 0 || resolve(top.stdout.trim()) !== resolve(root)) return walk(root);
+  const git = spawnSync("git", ["ls-files", "-z", "--cached", "--others", "--exclude-standard"], { cwd: root, encoding: "utf8" });
+  if (git.status === 0) {
+    return git.stdout.split("\0").filter(Boolean).map((rel) => join(root, rel)).filter((p) => existsSync(p) && statSync(p).isFile());
+  }
+  return walk(root);
+};
+const publicFiles = publishable();
+
+// 4. Relative markdown links resolve
 for (const file of walk(skill).filter((p) => p.endsWith(".md"))) {
   for (const m of read(file).matchAll(/\]\(([^)#\s]+)\)/g)) {
     const target = m[1];
@@ -87,8 +106,8 @@ try {
   if (cases.length < 12) fail(`evals: expected the 12 spec cases, found ${cases.length}`);
 } catch (e) { fail(`evals/cases.json: ${e.message}`); }
 
-// 7. Public-repo hygiene: no real adapters committed, no obvious secrets
-for (const file of walk(root).filter((p) => !p.includes("/.git/") && !p.includes("/node_modules/"))) {
+// 7. Public-repo hygiene: no real adapters published, no obvious secrets
+for (const file of publicFiles) {
   const rel = file.slice(root.length + 1);
   if (rel.endsWith(".adapter.json") && !rel.endsWith("example.adapter.json")) fail(`${rel}: real adapters must stay private`);
   if (/\.(md|json|mjs|sh|ya?ml)$/.test(rel)) {
@@ -105,12 +124,13 @@ if (existsSync(denyPath)) {
   const terms = read(denyPath).split("\n").map((l) => l.replace(/#.*/, "").trim()).filter(Boolean);
   const escape = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   const deny = terms.length ? new RegExp(`(?<![a-z0-9])(${terms.map(escape).join("|")})(?![a-z0-9])`, "i") : null;
-  const scanned = walk(root).filter((p) => !p.includes("/.git/") && !p.includes("/.dan/") && !p.includes("/node_modules/"));
-  for (const file of deny ? scanned : []) {
+  // In CI, logs may be public: report where, never what.
+  const masked = process.env.CI === "true";
+  for (const file of deny ? publicFiles.filter((p) => resolve(p) !== resolve(denyPath)) : []) {
     const rel = file.slice(root.length + 1);
     read(file).split("\n").forEach((line, i) => {
       const hit = line.match(deny);
-      if (hit) fail(`${rel}:${i + 1}: private term "${hit[1]}" must not be published`);
+      if (hit) fail(`${rel}:${i + 1}: ${masked ? "a private term (masked)" : `private term "${hit[1]}"`} must not be published`);
     });
   }
   console.log(`· denylist: ${terms.length} private term(s) checked`);

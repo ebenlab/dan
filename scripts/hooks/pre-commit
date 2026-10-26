@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
 # Blocks commits that break the package or leak private terms.
 # Enable once per clone:  git config core.hooksPath scripts/hooks
-exec node "$(git rev-parse --show-toplevel)/scripts/validate.mjs"
+set -e
+top="$(git rev-parse --show-toplevel)"
+node "$top/scripts/validate.mjs"
+node --test --test-reporter=dot "$top/scripts/validate.test.mjs"

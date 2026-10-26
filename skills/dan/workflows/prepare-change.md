@@ -17,7 +17,22 @@
 6. **Independent review.** Ask a different agent/model to run `review-change`. Resolve
    each finding with evidence or a reasoned rejection. Cap the loop (time or rounds from
    the adapter; default 2 rounds) and escalate leftover disagreement to Dan.
-7. **Package** (see `references/definition-of-done.md`).
+   If the runtime provides no independent reviewer, or its policy does not allow starting
+   one, hand off the patch with review explicitly pending. Do not call self-review
+   independent review.
+7. **Package** (see `references/definition-of-done.md`). Include a proposed PR title and
+   description stating the problem, resulting behavior, checks and remaining limitations.
+   Preparing that text does not publish it.
+8. **Before any authorized publication.** Read `CAPABILITIES.md` for grant requirements.
+   Reread the task, relevant thread and repository state; recheck assignment, active human
+   work, cancellation, base revision and the current grant for the exact destination and
+   action. A human takeover, revocation or material change invalidates the queued proposal;
+   stop that action and reconcile before preparing a replacement. A3 access alone is not
+   permission to publish a stale patch.
+   Record the exact action and its receipt. If push or PR creation times out, mark the
+   outcome uncertain and reconcile the remote branch/PR by stable target and revision
+   before any retry. If the outcome cannot be established, hand off the uncertainty;
+   do not repeat the action or claim publication succeeded.
 
 ## Output: review packet
 
