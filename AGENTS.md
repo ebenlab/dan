@@ -22,7 +22,12 @@ The public, employer-neutral source of Dan's `/dan` work skill. The installable 
 5. **Keep workflows self-contained.** An agent should be able to open one workflow file and
    the references it names, and nothing else.
 6. **Add an eval case** to `evals/cases.json` for any new behavioral rule.
-7. Run `node scripts/validate.mjs` before opening a PR.
+7. Run `node scripts/validate.mjs` before opening a PR. Enable the hook once per clone with
+   `git config core.hooksPath scripts/hooks`. If Dan gave you a private denylist, put it at
+   `.dan/denylist.txt` (never commit it).
+8. **Domain views stay industry-wide.** `skills/dan/domains/` holds Dan's views on fields
+   like logistics and shipping tech. Never put a current or past employer's products,
+   systems, customers or internals there. See `skills/dan/domains/README.md`.
 
 ## Giving an alternative opinion
 

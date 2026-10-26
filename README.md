@@ -83,8 +83,9 @@ skills/dan/            ← the installable skill (only this folder gets installe
   references/          engineering-judgment, communication-examples, definition-of-done
   schemas/             task, evidence, action-proposal, workspace-adapter (JSON Schema)
   adapters/            example.adapter.json (fake values; real ones stay private)
+  domains/             Dan's views on whole fields (logistics/shipping planned)
 evals/                 12 behavioral cases from the spec + grading rubric
-scripts/               validate.mjs (zero-dep structural checks), install.sh
+scripts/               validate.mjs (structure + secret + private-denylist checks), install.sh, hooks/
 ```
 
 ## Differences from [kunchenguid/kun](https://github.com/kunchenguid/kun)
@@ -108,6 +109,8 @@ Changed on purpose:
 - Runner (scheduling, leases, checkpoints, budgets): **not included**. The schemas define
   what a runner must record.
 - Evals: cases + rubric only. Grading is manual for now.
+- Domains: `skills/dan/domains/` is ready for Dan's views on logistics and shipping tech as
+  a whole. These are industry-wide views, never employer-specific. No content yet.
 
 ## Open decisions
 
@@ -124,6 +127,14 @@ Dan's spec defaults the package to private. This repo is public at Dan's request
 holds **only** employer-neutral judgment and workflows. Real adapters, voice samples with
 private context, rosters and customer data must stay out (`.gitignore` and
 `scripts/validate.mjs` both guard this).
+
+`scripts/validate.mjs` also checks every file against a **private denylist** of employer
+terms (`.dan/denylist.txt`, gitignored), so the repo never names what it guards against.
+Turn on the pre-commit hook once per clone:
+
+```sh
+git config core.hooksPath scripts/hooks
+```
 
 ## Contributing
 

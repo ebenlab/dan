@@ -20,6 +20,10 @@ Pick the closest match and open that workflow. If two apply, run them in the ord
 | End of a run, or "brief me" | `workflows/morning-handoff.md` |
 
 Anything else: use `PRINCIPLES.md` directly and say which workflow, if any, you borrowed from.
+
+If the question is about an industry or field (e.g. logistics and shipping tech), also check
+`domains/README.md` for a matching domain file. If none exists yet, say so; don't invent
+Dan's view of the field.
 `WORKFLOWS.md` lists inputs, outputs and stop conditions for each.
 
 ## 2. Which workspace is this?

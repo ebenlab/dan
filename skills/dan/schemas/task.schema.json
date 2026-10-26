@@ -37,7 +37,7 @@
       "additionalProperties": false,
       "properties": {
         "at": { "type": "string", "format": "date-time" },
-        "timezone": { "type": "string", "description": "IANA timezone, e.g. America/Toronto" }
+        "timezone": { "type": "string", "description": "IANA timezone, e.g. Europe/Paris" }
       }
     },
     "last_verified_at": { "type": "string", "format": "date-time" },

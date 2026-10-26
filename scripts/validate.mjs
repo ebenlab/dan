@@ -97,6 +97,27 @@ for (const file of walk(root).filter((p) => !p.includes("/.git/") && !p.includes
   }
 }
 
+// 8. Private denylist: employer/customer terms that must never appear in this public repo.
+// The list itself stays private (gitignored), so the repo never names what it is guarding.
+// Source: $DAN_DENYLIST, else .dan/denylist.txt. One term per line, '#' comments allowed.
+const denyPath = process.env.DAN_DENYLIST || join(root, ".dan", "denylist.txt");
+if (existsSync(denyPath)) {
+  const terms = read(denyPath).split("\n").map((l) => l.replace(/#.*/, "").trim()).filter(Boolean);
+  const escape = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const deny = terms.length ? new RegExp(`(?<![a-z0-9])(${terms.map(escape).join("|")})(?![a-z0-9])`, "i") : null;
+  const scanned = walk(root).filter((p) => !p.includes("/.git/") && !p.includes("/.dan/") && !p.includes("/node_modules/"));
+  for (const file of deny ? scanned : []) {
+    const rel = file.slice(root.length + 1);
+    read(file).split("\n").forEach((line, i) => {
+      const hit = line.match(deny);
+      if (hit) fail(`${rel}:${i + 1}: private term "${hit[1]}" must not be published`);
+    });
+  }
+  console.log(`· denylist: ${terms.length} private term(s) checked`);
+} else if (process.env.CI !== "true") {
+  console.log("· denylist: none found (create .dan/denylist.txt to guard employer terms)");
+}
+
 if (errors.length) {
   console.error(`✗ ${errors.length} problem(s):\n` + errors.map((e) => `  - ${e}`).join("\n"));
   process.exit(1);

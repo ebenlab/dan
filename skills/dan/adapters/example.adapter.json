@@ -1,7 +1,7 @@
 {
   "id": "example",
   "name": "Example workspace (fake values, copy and fill in privately)",
-  "timezone": "America/Toronto",
+  "timezone": "Etc/UTC",
   "sources": [
     { "system": "github", "scope": "issues and PRs assigned to or requesting review from the user in acme/widgets", "id_format": "owner/repo#number" },
     { "system": "chat", "scope": "direct mentions in #widgets-dev only", "id_format": "channel/thread_ts" }

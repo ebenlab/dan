@@ -16,12 +16,12 @@ Agent output, silence, or one successful draft is **not** evidence of a lasting 
 
 | ID | Source | Used for | Status |
 | --- | --- | --- | --- |
-| S1 | "Dan Personal Work Skill and Agent Operating Specification" (Notion, revised 2026-10-26) | Structure, principles P1–P11, autonomy levels, send gates, workflows, eval cases | Proposed: Dan requested the outcomes; the details are recommendations for his review |
+| S1 | Dan's personal work skill specification (private, revised 2026-10-26) | Structure, principles P1–P11, autonomy levels, send gates, workflows, eval cases | Proposed: Dan requested the outcomes; the details are recommendations for his review |
 | S2 | kunchenguid/kun (public GitHub repo) | Package shape only: thin entry skill, separate judgment / voice / tools files, selective loading | Structural reference; no opinions copied |
 
 ## Where the source of truth lives
 
-Notion is the editorial spec. This repo is the executable source. Changes flow one way:
+The private spec is the editorial source. This repo is the executable source. Changes flow one way:
 reviewed spec edits → PR here → tagged release. Don't let two copies rewrite each other.
 
 ## What is deliberately not here
