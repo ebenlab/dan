@@ -1,0 +1,24 @@
+{
+  "id": "example",
+  "name": "Example workspace (fake values, copy and fill in privately)",
+  "timezone": "Etc/UTC",
+  "sources": [
+    { "system": "github", "scope": "issues and PRs assigned to or requesting review from the user in acme/widgets", "id_format": "owner/repo#number" },
+    { "system": "chat", "scope": "direct mentions in #widgets-dev only", "id_format": "channel/thread_ts" }
+  ],
+  "repositories": [
+    {
+      "name": "acme/widgets",
+      "default_branch": "main",
+      "check_commands": ["npm test", "npm run lint"],
+      "instructions_files": ["AGENTS.md", "CONTRIBUTING.md"],
+      "test_environment": "local docker compose with seeded fake data"
+    }
+  ],
+  "roles": [{ "handle": "@example-lead", "role": "tech lead, approves releases" }],
+  "terminology": { "widget": "the core billable unit" },
+  "service_expectations": "Customer-reported bugs acknowledged within one business day.",
+  "release_process": "Humans merge; release is tagged weekly by the tech lead.",
+  "review_loop": { "max_rounds": 2, "max_minutes": 30 },
+  "capability_gaps": ["cannot read production logs", "no staging environment"]
+}
