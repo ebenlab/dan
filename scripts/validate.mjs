@@ -1,24 +1,31 @@
 #!/usr/bin/env node
-// Structural checks for the /dan package. Zero dependencies.
+// Structural checks for every skill in this repo. Zero dependencies.
 // Usage: node scripts/validate.mjs
 import { readFileSync, readdirSync, existsSync, statSync } from "node:fs";
 import { join, dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
+import { compileSchema } from "./schema-validation.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const skill = join(root, "skills", "dan");
+const skillsDir = join(root, "skills");
+const skill = join(skillsDir, "dan");
 const errors = [];
 const fail = (msg) => errors.push(msg);
 const read = (p) => readFileSync(p, "utf8");
 
-// 1. SKILL.md frontmatter
-const skillMd = read(join(skill, "SKILL.md"));
-const fm = skillMd.match(/^---\n([\s\S]*?)\n---/);
-if (!fm) fail("SKILL.md: missing frontmatter");
-else {
-  if (!/^name:\s*dan\s*$/m.test(fm[1])) fail("SKILL.md: name must be 'dan'");
-  if (!/^description:/m.test(fm[1])) fail("SKILL.md: missing description");
+// 1. Every skills/<name>/ has a SKILL.md whose frontmatter name matches the folder
+const skillNames = readdirSync(skillsDir).filter((f) => statSync(join(skillsDir, f)).isDirectory());
+if (!skillNames.includes("dan")) fail("skills/dan: missing");
+for (const name of skillNames) {
+  const label = `skills/${name}/SKILL.md`;
+  const entry = join(skillsDir, name, "SKILL.md");
+  if (!existsSync(entry)) { fail(`${label}: missing`); continue; }
+  const fm = read(entry).match(/^---\n([\s\S]*?)\n---/);
+  if (!fm) { fail(`${label}: missing frontmatter`); continue; }
+  const declared = fm[1].match(/^name:\s*(\S+)\s*$/m)?.[1];
+  if (declared !== name) fail(`${label}: name must be '${name}' (found '${declared ?? ""}')`);
+  if (!/^description:/m.test(fm[1])) fail(`${label}: missing description`);
 }
 
 // 2. Required files
@@ -63,8 +70,10 @@ const publishable = () => {
 };
 const publicFiles = publishable();
 
-// 4. Relative markdown links resolve
-for (const file of walk(skill).filter((p) => p.endsWith(".md"))) {
+// 4. Relative markdown links resolve in every skill, the docs and the README
+const linkScope = [skillsDir, join(root, "docs"), join(root, "README.md")].filter(existsSync);
+const linkFiles = linkScope.flatMap((p) => (statSync(p).isDirectory() ? walk(p) : [p]));
+for (const file of linkFiles.filter((p) => p.endsWith(".md"))) {
   for (const m of read(file).matchAll(/\]\(([^)#\s]+)\)/g)) {
     const target = m[1];
     if (/^[a-z]+:/i.test(target)) continue;
@@ -72,27 +81,30 @@ for (const file of walk(skill).filter((p) => p.endsWith(".md"))) {
   }
 }
 
-// 5. JSON parses; schemas declare a title; example adapter has the required keys
+// 5. Compile our bounded schema vocabulary and validate the complete example adapter.
+// Shape validation is not authorization: the runtime must still verify real grants.
 const schemas = {};
 for (const f of readdirSync(join(skill, "schemas"))) {
   try {
     const s = JSON.parse(read(join(skill, "schemas", f)));
     if (!s.title) fail(`schemas/${f}: missing title`);
-    schemas[s.title] = s;
-  } catch (e) { fail(`schemas/${f}: invalid JSON (${e.message})`); }
+    else if (Object.hasOwn(schemas, s.title)) fail(`schemas/${f}: duplicate title`);
+    else schemas[s.title] = compileSchema(s);
+  } catch (e) { fail(`schemas/${f}: ${e.message}`); }
 }
-const checkRequired = (obj, schema, label) => {
-  for (const k of schema.required ?? []) if (!(k in obj)) fail(`${label}: missing required '${k}'`);
-  if (schema.additionalProperties === false) {
-    for (const k of Object.keys(obj)) if (!(k in (schema.properties ?? {}))) fail(`${label}: unknown key '${k}'`);
-  }
-};
 try {
   const adapter = JSON.parse(read(join(skill, "adapters", "example.adapter.json")));
-  if (schemas.WorkspaceAdapter) checkRequired(adapter, schemas.WorkspaceAdapter, "adapters/example.adapter.json");
-} catch (e) { fail(`adapters/example.adapter.json: invalid JSON (${e.message})`); }
+  if (schemas.WorkspaceAdapter) {
+    for (const error of schemas.WorkspaceAdapter(adapter)) fail(`adapters/example.adapter.json: ${error}`);
+  }
+} catch { fail("adapters/example.adapter.json: invalid JSON"); }
 
 // 6. Eval cases
+const workflowsOf = (name) => {
+  const dir = join(skillsDir, name, "workflows");
+  if (!existsSync(dir)) return new Set();
+  return new Set(readdirSync(dir).filter((f) => f.endsWith(".md") && statSync(join(dir, f)).isFile()));
+};
 try {
   const { cases } = JSON.parse(read(join(root, "evals", "cases.json")));
   const ids = new Set();
@@ -100,7 +112,12 @@ try {
     for (const k of ["id", "workflow", "granted_level", "scenario", "must", "must_not"]) if (!(k in c)) fail(`evals: case ${c.id ?? "?"} missing ${k}`);
     if (ids.has(c.id)) fail(`evals: duplicate id ${c.id}`);
     ids.add(c.id);
-    if (c.workflow !== "none" && !wfFiles.has(`${c.workflow}.md`)) fail(`evals: case ${c.id} references unknown workflow ${c.workflow}`);
+    const caseSkill = c.skill ?? "dan"; // cases without a skill field belong to /dan
+    if (!skillNames.includes(caseSkill)) fail(`evals: case ${c.id} references unknown skill ${caseSkill}`);
+    else if (c.workflow !== "none" && !workflowsOf(caseSkill).has(`${c.workflow}.md`)) {
+      // Membership in the skill's actual workflow files, never a path lookup (rejects "../SKILL").
+      fail(`evals: case ${c.id} references unknown workflow ${caseSkill}/${c.workflow}`);
+    }
     if (!c.must_not?.length) fail(`evals: case ${c.id} needs at least one must_not`);
   }
   if (cases.length < 12) fail(`evals: expected the 12 spec cases, found ${cases.length}`);
@@ -142,4 +159,4 @@ if (errors.length) {
   console.error(`✗ ${errors.length} problem(s):\n` + errors.map((e) => `  - ${e}`).join("\n"));
   process.exit(1);
 }
-console.log("✓ /dan package looks structurally sound");
+console.log(`✓ ${skillNames.length} skill(s) look structurally sound: ${skillNames.join(", ")}`);

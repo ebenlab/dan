@@ -2,13 +2,13 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/ebenlab/dan/skills/dan/schemas/task.schema.json",
   "title": "Task",
-  "description": "One unit of work. Workflow state and verification state are tracked separately.",
+  "description": "One unit of work. Workflow state and verification state are tracked separately. A valid record is shape only: it grants nothing, and 'completed' does not mean validated in production. The runtime must still recheck grants, assignment, human takeover and evidence freshness before acting.",
   "type": "object",
   "required": ["id", "workspace", "sources", "intended_outcome", "workflow_state", "verification_state", "permission", "last_verified_at"],
   "additionalProperties": false,
   "properties": {
-    "id": { "type": "string", "description": "Stable task ID." },
-    "workspace": { "type": "string", "description": "Workspace adapter ID this task belongs to." },
+    "id": { "type": "string", "minLength": 1, "pattern": "\\S", "description": "Stable task ID." },
+    "workspace": { "type": "string", "minLength": 1, "pattern": "\\S", "description": "Workspace adapter ID this task belongs to." },
     "sources": {
       "type": "array",
       "minItems": 1,
@@ -17,8 +17,8 @@
         "required": ["system", "source_id"],
         "additionalProperties": false,
         "properties": {
-          "system": { "type": "string", "description": "e.g. github, linear, slack, email" },
-          "source_id": { "type": "string", "description": "Exact identifier in that system (used for dedupe)." },
+          "system": { "type": "string", "minLength": 1, "pattern": "\\S", "description": "e.g. github, linear, slack, email" },
+          "source_id": { "type": "string", "minLength": 1, "pattern": "\\S", "description": "Exact identifier in that system (used for dedupe)." },
           "url": { "type": "string" },
           "revision": { "type": "string", "description": "Commit, version or edit timestamp seen." }
         }
@@ -27,8 +27,8 @@
     "requester": { "type": "string" },
     "owner": { "type": "string" },
     "assignment_evidence": { "type": "string", "description": "Why we believe this is ours. Assignment alone is not a permission." },
-    "intended_outcome": { "type": "string" },
-    "acceptance_criteria": { "type": "array", "items": { "type": "string" } },
+    "intended_outcome": { "type": "string", "minLength": 1, "pattern": "\\S" },
+    "acceptance_criteria": { "type": "array", "items": { "type": "string", "minLength": 1, "pattern": "\\S" } },
     "dependencies": { "type": "array", "items": { "type": "string" } },
     "priority_rationale": { "type": "string" },
     "due": {
@@ -37,7 +37,7 @@
       "additionalProperties": false,
       "properties": {
         "at": { "type": "string", "format": "date-time" },
-        "timezone": { "type": "string", "description": "IANA timezone, e.g. Europe/Paris" }
+        "timezone": { "type": "string", "minLength": 1, "pattern": "\\S", "description": "IANA timezone, e.g. Europe/Paris" }
       }
     },
     "last_verified_at": { "type": "string", "format": "date-time" },
@@ -49,17 +49,24 @@
       "additionalProperties": false,
       "properties": {
         "level": { "enum": ["A0", "A1", "A2", "A3", "A4"] },
-        "grant_ref": { "type": "string", "description": "Reference into the runtime's permission registry. Absent means default A1 or lower." },
+        "grant_ref": { "type": "string", "minLength": 1, "pattern": "\\S", "description": "Reference into the runtime's permission registry, or to an explicit in-session authorization. Required from A2 up; absent means A1 or lower." },
         "permitted_actions": { "type": "array", "items": { "type": "string" } }
-      }
+      },
+      "allOf": [
+        {
+          "description": "T-1: building, publishing or communicating needs a named grant.",
+          "if": { "required": ["level"], "properties": { "level": { "enum": ["A2", "A3", "A4"] } } },
+          "then": { "required": ["grant_ref"] }
+        }
+      ]
     },
     "budget": {
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "max_minutes": { "type": "number" },
-        "max_cost_usd": { "type": "number" },
-        "max_review_rounds": { "type": "integer" }
+        "max_minutes": { "type": "number", "exclusiveMinimum": 0 },
+        "max_cost_usd": { "type": "number", "minimum": 0, "description": "0 means no spending allowed." },
+        "max_review_rounds": { "type": "integer", "minimum": 1 }
       }
     },
     "stop_conditions": { "type": "array", "items": { "type": "string" } },
@@ -75,7 +82,7 @@
       "required": ["holder", "expires_at"],
       "additionalProperties": false,
       "properties": {
-        "holder": { "type": "string" },
+        "holder": { "type": "string", "minLength": 1, "pattern": "\\S" },
         "expires_at": { "type": "string", "format": "date-time" }
       }
     },
@@ -93,7 +100,20 @@
       }
     },
     "artifacts": { "type": "array", "items": { "type": "string" } },
-    "evidence": { "type": "array", "items": { "type": "string" }, "description": "IDs of evidence records." },
+    "evidence": { "type": "array", "items": { "type": "string", "minLength": 1, "pattern": "\\S" }, "description": "IDs of evidence records." },
     "action_proposals": { "type": "array", "items": { "type": "string" }, "description": "IDs of action proposals." }
-  }
+  },
+  "allOf": [
+    {
+      "description": "T-2: a completed task states its criteria, its evidence status and the evidence behind it. Completed means this task's criteria were met, not that every source agrees (a task can be to document a conflict) and not that the change is 'validated' (preparation tasks finish earlier). The runtime judges whether a conflict violates the criteria.",
+      "if": { "required": ["workflow_state"], "properties": { "workflow_state": { "const": "completed" } } },
+      "then": {
+        "required": ["acceptance_criteria", "evidence_status", "evidence"],
+        "properties": {
+          "acceptance_criteria": { "minItems": 1 },
+          "evidence": { "minItems": 1 }
+        }
+      }
+    }
+  ]
 }

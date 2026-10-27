@@ -7,7 +7,7 @@
 // contains them literally (the validator scans this file too).
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, mkdirSync, writeFileSync, cpSync, rmSync, realpathSync } from "node:fs";
+import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, cpSync, rmSync, realpathSync } from "node:fs";
 import { join, dirname, resolve } from "node:path";
 import { tmpdir } from "node:os";
 import { spawnSync } from "node:child_process";
@@ -119,6 +119,69 @@ for (const mode of [{ name: "git", withGit: true }, { name: "no git", withGit: f
     rmSync(dir, { recursive: true, force: true });
     rmSync(dirname(list), { recursive: true, force: true });
     assert.equal(r.code, 1, r.out);
+  });
+}
+
+for (const mode of [{ name: "git", withGit: true }, { name: "no git", withGit: false }]) {
+  test(`[${mode.name}] every skill folder needs a SKILL.md`, () => {
+    const dir = fixture(mode.withGit);
+    put(dir, "skills/half-done/notes.md", "draft\n");
+    const r = run(dir);
+    rmSync(dir, { recursive: true, force: true });
+    assert.equal(r.code, 1, r.out);
+    assert.match(r.out, /skills\/half-done\/SKILL\.md: missing/);
+  });
+
+  test(`[${mode.name}] SKILL.md name must match its folder`, () => {
+    const dir = fixture(mode.withGit);
+    put(dir, "skills/renamed/SKILL.md", "---\nname: something-else\ndescription: x\n---\n# x\n");
+    const r = run(dir);
+    rmSync(dir, { recursive: true, force: true });
+    assert.equal(r.code, 1, r.out);
+    assert.match(r.out, /skills\/renamed\/SKILL\.md: name must be 'renamed'/);
+  });
+
+  test(`[${mode.name}] broken links fail in any skill and in docs`, () => {
+    const dir = fixture(mode.withGit);
+    put(dir, "skills/extra/SKILL.md", "---\nname: extra\ndescription: x\n---\nSee [a](missing-a.md).\n");
+    put(dir, "docs/extra.md", "See [b](missing-b.md).\n");
+    const r = run(dir);
+    rmSync(dir, { recursive: true, force: true });
+    assert.equal(r.code, 1, r.out);
+    assert.match(r.out, /skills\/extra\/SKILL\.md: broken link missing-a\.md/);
+    assert.match(r.out, /docs\/extra\.md: broken link missing-b\.md/);
+  });
+
+  test(`[${mode.name}] eval cases must name a real skill and that skill's workflow`, () => {
+    const dir = fixture(mode.withGit);
+    const p = join(dir, "evals", "cases.json");
+    const data = JSON.parse(readFileSync(p, "utf8"));
+    const base = { granted_level: "A0", scenario: "x", must: ["x"], must_not: ["y"] };
+    data.cases.push({ id: "fx-unknown-skill", skill: "no-such-skill", workflow: "none", ...base });
+    data.cases.push({ id: "fx-wrong-workflow", skill: "carrier-integration", workflow: "triage", ...base });
+    data.cases.push({ id: "fx-path-workflow", skill: "carrier-integration", workflow: "../SKILL", ...base });
+    data.cases.push({ id: "fx-dan-path-workflow", workflow: "../ENTRY", ...base });
+    data.cases.push({ id: "fx-good", skill: "carrier-integration", workflow: "add-carrier", ...base });
+    data.cases.push({ id: "fx-good-none", skill: "shipping-review", workflow: "none", ...base });
+    writeFileSync(p, JSON.stringify(data, null, 2));
+    const r = run(dir);
+    rmSync(dir, { recursive: true, force: true });
+    assert.equal(r.code, 1, r.out);
+    assert.match(r.out, /case fx-unknown-skill references unknown skill no-such-skill/);
+    assert.match(r.out, /case fx-wrong-workflow references unknown workflow carrier-integration\/triage/);
+    assert.match(r.out, /case fx-path-workflow references unknown workflow carrier-integration\/\.\.\/SKILL/);
+    assert.match(r.out, /case fx-dan-path-workflow references unknown workflow dan\/\.\.\/ENTRY/);
+    assert.ok(!/fx-good/.test(r.out), "valid skill/workflow pairs must not be reported");
+  });
+
+  test(`[${mode.name}] a well-formed extra skill passes`, () => {
+    const dir = fixture(mode.withGit);
+    put(dir, "skills/extra/SKILL.md", "---\nname: extra\ndescription: x\n---\nSee [notes](NOTES.md).\n");
+    put(dir, "skills/extra/NOTES.md", "ok\n");
+    const r = run(dir);
+    rmSync(dir, { recursive: true, force: true });
+    assert.equal(r.code, 0, r.out);
+    assert.match(r.out, /5 skill\(s\) look structurally sound/);
   });
 }
 

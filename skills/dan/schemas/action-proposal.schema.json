@@ -2,13 +2,13 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/ebenlab/dan/skills/dan/schemas/action-proposal.schema.json",
   "title": "ActionProposal",
-  "description": "One side effect, bound to exact content, base revision and approval. Revalidate before executing if anything material changed.",
+  "description": "One side effect, bound to exact content, base revision and approval. Revalidate before executing if anything material changed. A valid record is shape only: it grants nothing. The runtime must still recheck grant validity, scope, expiry and revocation, human takeover, evidence freshness and the exact content before acting.",
   "type": "object",
   "required": ["id", "task_id", "action", "level", "target", "content", "approval"],
   "additionalProperties": false,
   "properties": {
-    "id": { "type": "string" },
-    "task_id": { "type": "string" },
+    "id": { "type": "string", "minLength": 1, "pattern": "\\S" },
+    "task_id": { "type": "string", "minLength": 1, "pattern": "\\S" },
     "action": { "enum": ["publish_branch", "open_draft_pr", "post_comment", "create_ticket", "send_message", "other"] },
     "level": { "enum": ["A3", "A4", "reserved"] },
     "target": {
@@ -16,39 +16,98 @@
       "required": ["system", "destination"],
       "additionalProperties": false,
       "properties": {
-        "system": { "type": "string" },
-        "destination": { "type": "string", "description": "Repo, channel, thread, recipient." },
-        "sending_identity": { "type": "string" }
+        "system": { "type": "string", "minLength": 1, "pattern": "\\S" },
+        "destination": { "type": "string", "minLength": 1, "pattern": "\\S", "description": "Repo, channel, thread, recipient." },
+        "sending_identity": { "type": "string", "minLength": 1, "pattern": "\\S", "description": "Verified account the action runs as. Required at A4." }
       }
     },
-    "content": { "type": "string", "description": "Exact message text or diff reference. Approval covers this content only." },
+    "content": { "type": "string", "minLength": 1, "pattern": "\\S", "description": "Exact message text or diff reference. Approval covers this content only." },
     "content_sha256": { "type": "string" },
-    "base_revision": { "type": "string", "description": "Thread state or commit this was prepared against." },
+    "base_revision": { "type": "string", "minLength": 1, "pattern": "\\S", "description": "Thread state or commit this was prepared against. Required once executable." },
     "tests": { "type": "array", "items": { "type": "string" } },
-    "intended_side_effects": { "type": "array", "items": { "type": "string" } },
-    "evidence": { "type": "array", "items": { "type": "string" } },
+    "intended_side_effects": { "type": "array", "items": { "type": "string", "minLength": 1, "pattern": "\\S" } },
+    "evidence": { "type": "array", "items": { "type": "string", "minLength": 1, "pattern": "\\S" } },
     "approval": {
       "type": "object",
       "required": ["state"],
       "additionalProperties": false,
       "properties": {
         "state": { "enum": ["not_required_under_grant", "pending", "approved", "rejected", "invalidated"] },
-        "grant_ref": { "type": "string" },
-        "approved_by": { "type": "string" },
+        "grant_ref": { "type": "string", "minLength": 1, "pattern": "\\S", "description": "Reference into the runtime's permission registry, or to an explicit in-session authorization." },
+        "approved_by": { "type": "string", "minLength": 1, "pattern": "\\S" },
         "approved_at": { "type": "string", "format": "date-time" },
-        "invalidated_reason": { "type": "string", "description": "e.g. human replied, revocation, new commit." }
-      }
+        "invalidated_reason": { "type": "string", "minLength": 1, "pattern": "\\S", "description": "e.g. human replied, revocation, new commit." }
+      },
+      "allOf": [
+        {
+          "description": "AP-1: an approval names who approved, when, and under which grant.",
+          "if": { "required": ["state"], "properties": { "state": { "const": "approved" } } },
+          "then": { "required": ["approved_by", "approved_at", "grant_ref"] }
+        },
+        {
+          "description": "AP-2: 'not required' is only true under a named grant.",
+          "if": { "required": ["state"], "properties": { "state": { "const": "not_required_under_grant" } } },
+          "then": { "required": ["grant_ref"] }
+        },
+        {
+          "description": "AP-3: an invalidation says why.",
+          "if": { "required": ["state"], "properties": { "state": { "const": "invalidated" } } },
+          "then": { "required": ["invalidated_reason"] }
+        }
+      ]
     },
     "receipt": {
       "type": "object",
-      "description": "Filled only after execution. An uncertain outcome must be reconciled before any retry.",
+      "description": "AP-7: filled only after execution and always states its outcome. Kept exactly as recorded even if the approval is later revoked or invalidated: execution-time authorization is checked by the runtime, not reconstructed here. An uncertain outcome must be reconciled before any retry.",
+      "required": ["outcome"],
       "additionalProperties": false,
       "properties": {
         "outcome": { "enum": ["succeeded", "failed", "uncertain"] },
         "executed_at": { "type": "string", "format": "date-time" },
-        "external_id": { "type": "string" },
-        "url": { "type": "string" }
-      }
+        "external_id": { "type": "string", "minLength": 1, "pattern": "\\S" },
+        "url": { "type": "string", "minLength": 1, "pattern": "\\S" }
+      },
+      "allOf": [
+        {
+          "description": "AP-8: a success carries when it happened and a remote identifier or URL that proves it.",
+          "if": { "required": ["outcome"], "properties": { "outcome": { "const": "succeeded" } } },
+          "then": {
+            "required": ["executed_at"],
+            "anyOf": [{ "required": ["external_id"] }, { "required": ["url"] }]
+          }
+        }
+      ]
     }
-  }
+  },
+  "allOf": [
+    {
+      "description": "AP-4: an executable proposal is bound to a base revision, evidence and declared side effects.",
+      "if": {
+        "required": ["approval"],
+        "properties": { "approval": { "required": ["state"], "properties": { "state": { "enum": ["approved", "not_required_under_grant"] } } } }
+      },
+      "then": {
+        "required": ["base_revision", "evidence", "intended_side_effects"],
+        "properties": {
+          "evidence": { "minItems": 1 },
+          "intended_side_effects": { "minItems": 1 }
+        }
+      }
+    },
+    {
+      "description": "AP-5: sending a message is bounded communication (A4).",
+      "if": { "required": ["action"], "properties": { "action": { "const": "send_message" } } },
+      "then": { "properties": { "level": { "const": "A4" } } }
+    },
+    {
+      "description": "AP-6: A4 actions name the verified sending identity.",
+      "if": { "required": ["level"], "properties": { "level": { "const": "A4" } } },
+      "then": { "properties": { "target": { "required": ["sending_identity"] } } }
+    },
+    {
+      "description": "AP-9: reserved actions always need an explicit, action-specific approval.",
+      "if": { "required": ["level"], "properties": { "level": { "const": "reserved" } } },
+      "then": { "properties": { "approval": { "properties": { "state": { "enum": ["approved", "pending", "rejected", "invalidated"] } } } } }
+    }
+  ]
 }

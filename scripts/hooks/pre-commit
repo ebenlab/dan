@@ -4,4 +4,4 @@
 set -e
 top="$(git rev-parse --show-toplevel)"
 node "$top/scripts/validate.mjs"
-node --test --test-reporter=dot "$top/scripts/validate.test.mjs"
+node --test --test-reporter=dot "$top/scripts/validate.test.mjs" "$top/scripts/schema-validation.test.mjs" "$top/scripts/install.test.mjs"

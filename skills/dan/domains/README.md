@@ -3,9 +3,9 @@
 Dan's views on whole industries and technical fields, as opposed to how he works
 (`PRINCIPLES.md`). Open a domain file only when the question is about that field.
 
-Planned: `logistics.md` covering logistics and shipping tech as a whole: carriers,
-multi-carrier integration, rating, labels, tracking, fulfillment, returns, customs, and
-where the industry is going.
+- [`logistics.md`](logistics.md): logistics and shipping tech, covering carriers,
+  multi-carrier integration, rating, labels, tracking and customs. It links to the
+  `/shipping-api-design`, `/carrier-integration` and `/shipping-review` skills.
 
 ## Rules for domain files
 

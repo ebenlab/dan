@@ -14,6 +14,16 @@ grants need Dan's explicit approval in the PR. They never come from "learning".
 
 ## 0.1.0 (unreleased)
 
+- Harden action/task record conditionals: approval provenance, executable proposal
+  evidence, identity, grants, completion criteria and bounded budgets. Preserve historical
+  receipts after revocation and allow a zero-spend budget. Source: S1 sections 5–8;
+  schema validity grants no authority and does not prove runtime permission or freshness.
+- Compile the local schema vocabulary with zero runtime dependencies; reject unsupported
+  keywords and validate nested adapter data. Add focused positive/negative fixture tests
+  and wire them into CI and the pre-commit script. Date-time checks use an explicit
+  RFC3339 profile with offsets and real dates, excluding leap seconds.
+- Add behavioral scenarios for schema-valid but revoked grants and historical uncertain
+  receipts. Existing principles, autonomy defaults and privacy scans are unchanged.
 - Clarify prepare-change handoff when independent review is unavailable; preserve the
   existing two-round review cap and report the review gap honestly.
 - Prepare PR descriptions privately; recheck current task, human ownership, base revision
